@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
 
 interface PerformanceMetrics {
   renderTime: number;
@@ -59,7 +59,7 @@ export function usePerformance(
   });
 
   // Track render end and calculate metrics
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof performance === 'undefined' || !performance.now) {
       return;
     }
@@ -88,7 +88,11 @@ export function usePerformance(
       lastRenderTime: renderEndTime,
     };
 
-    setMetrics(newMetrics);
+    // Use a ref to store the latest metrics to avoid triggering re-renders
+    // and update state only during the next tick to break the cycle
+    const timeoutId = setTimeout(() => {
+      setMetrics(newMetrics);
+    }, 0);
 
     if (logToConsole) {
       if (renderTime > threshold) {
@@ -105,7 +109,9 @@ export function usePerformance(
         console.log(`💾 Memory usage: ${memoryUsage.toFixed(2)}MB`);
       }
     }
-  }); // Remove dependency array to run on every render
+
+    return () => clearTimeout(timeoutId);
+  }); // Runs on every render but defers state updates
 
   const getAverageRenderTime = useCallback(() => {
     // This would require storing historical data

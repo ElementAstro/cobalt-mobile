@@ -42,9 +42,16 @@ describe('useEnhancedInteractions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Reset the mock implementation
+    mockInteractionManager.on.mockClear();
+    mockInteractionManager.destroy.mockClear();
+
     // Get the mocked constructor
     const { InteractionManager } = require('@/lib/interaction-manager');
     mockInteractionManagerConstructor = InteractionManager as jest.Mock;
+    
+    // Ensure the constructor returns our mock instance
+    mockInteractionManagerConstructor.mockReturnValue(mockInteractionManager);
 
     // Create a mock DOM element
     mockElement = document.createElement('div');
@@ -60,7 +67,7 @@ describe('useEnhancedInteractions', () => {
       const { result } = renderHook(() => useEnhancedInteractions());
 
       expect(result.current.ref).toBeDefined();
-      expect(result.current.ref.current).toBeNull();
+      expect(typeof result.current.ref).toBe('function');
     });
 
     it('should create interaction manager when ref is set', () => {
@@ -70,7 +77,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManagerConstructor).toHaveBeenCalledWith(mockElement, expect.any(Object));
@@ -83,7 +90,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       unmount();
@@ -100,7 +107,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManager.on).toHaveBeenCalledWith('swipe', expect.any(Function));
@@ -113,7 +120,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManager.on).toHaveBeenCalledWith('tap', expect.any(Function));
@@ -126,7 +133,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManager.on).toHaveBeenCalledWith('longpress', expect.any(Function));
@@ -139,7 +146,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManager.on).toHaveBeenCalledWith('pinch', expect.any(Function));
@@ -156,7 +163,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManagerConstructor).toHaveBeenCalledWith(
@@ -175,7 +182,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManagerConstructor).toHaveBeenCalledWith(
@@ -194,7 +201,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManager.on).toHaveBeenCalledWith('swipe', expect.any(Function));
@@ -211,7 +218,7 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManager.on).toHaveBeenCalledWith('swipe', expect.any(Function));
@@ -220,7 +227,9 @@ describe('useEnhancedInteractions', () => {
 
   describe('Error Handling', () => {
     it('should handle interaction manager creation errors gracefully', () => {
-      mockInteractionManagerConstructor.mockImplementation(() => {
+      // Reset mock to throw error only for this test
+      const originalMock = mockInteractionManagerConstructor.getMockImplementation();
+      mockInteractionManagerConstructor.mockImplementationOnce(() => {
         throw new Error('Failed to create manager');
       });
 
@@ -230,9 +239,16 @@ describe('useEnhancedInteractions', () => {
 
       expect(() => {
         act(() => {
-          result.current.ref.current = mockElement;
+          result.current.ref(mockElement);
         });
       }).not.toThrow();
+
+      // Restore original mock
+      if (originalMock) {
+        mockInteractionManagerConstructor.mockImplementation(originalMock);
+      } else {
+        mockInteractionManagerConstructor.mockReturnValue(mockInteractionManager);
+      }
     });
   });
 
@@ -244,7 +260,7 @@ describe('useEnhancedInteractions', () => {
 
       // Set initial element
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(mockInteractionManagerConstructor).toHaveBeenCalledTimes(1);
@@ -254,7 +270,7 @@ describe('useEnhancedInteractions', () => {
       document.body.appendChild(newElement);
 
       act(() => {
-        result.current.ref.current = newElement;
+        result.current.ref(newElement);
       });
 
       expect(mockInteractionManager.destroy).toHaveBeenCalledTimes(1);
@@ -269,12 +285,12 @@ describe('useEnhancedInteractions', () => {
       );
 
       act(() => {
-        result.current.ref.current = mockElement;
+        result.current.ref(mockElement);
       });
 
       expect(() => {
         act(() => {
-          result.current.ref.current = null;
+          result.current.ref(null);
         });
       }).not.toThrow();
 

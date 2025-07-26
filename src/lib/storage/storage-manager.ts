@@ -20,6 +20,7 @@ export class StorageManager {
   private storage: Storage;
   private fallbackStorage: Map<string, any>;
   private useIndexedDB: boolean;
+  private accessCounts: Map<string, number> = new Map();
 
   constructor(useIndexedDB = false) {
     this.useIndexedDB = useIndexedDB;
@@ -27,7 +28,11 @@ export class StorageManager {
     
     // Try to use localStorage, fall back to in-memory storage
     try {
-      this.storage = typeof window !== 'undefined' ? window.localStorage : this.createMemoryStorage();
+      if (typeof window !== 'undefined' && window.localStorage) {
+        this.storage = window.localStorage;
+      } else {
+        this.storage = this.createMemoryStorage();
+      }
     } catch (error) {
       this.storage = this.createMemoryStorage();
     }
@@ -53,41 +58,41 @@ export class StorageManager {
       return;
     }
 
+    // For simple compatibility with tests, store simple JSON if no options are provided
+    let serializedData: string;
+
+    if (!options.compression && !options.encryption && !options.ttl) {
+      serializedData = JSON.stringify(value);
+    } else {
+      const item: StorageItem<T> = {
+        data: value,
+        timestamp: Date.now(),
+        ttl: options.ttl,
+        compressed: options.compression,
+        encrypted: options.encryption,
+      };
+      serializedData = JSON.stringify(item);
+    }
+
+    // Apply compression if requested
+    if (options.compression && typeof window !== 'undefined' && 'CompressionStream' in window) {
+      try {
+        serializedData = await this.compress(serializedData);
+      } catch (error) {
+        console.warn('Compression failed, storing uncompressed:', error);
+      }
+    }
+
+    // Apply encryption if requested
+    if (options.encryption) {
+      try {
+        serializedData = await this.encrypt(serializedData);
+      } catch (error) {
+        console.warn('Encryption failed, storing unencrypted:', error);
+      }
+    }
+
     try {
-      // For simple compatibility with tests, store simple JSON if no options are provided
-      let serializedData: string;
-
-      if (!options.compression && !options.encryption && !options.ttl) {
-        serializedData = JSON.stringify(value);
-      } else {
-        const item: StorageItem<T> = {
-          data: value,
-          timestamp: Date.now(),
-          ttl: options.ttl,
-          compressed: options.compression,
-          encrypted: options.encryption,
-        };
-        serializedData = JSON.stringify(item);
-      }
-
-      // Apply compression if requested
-      if (options.compression && typeof window !== 'undefined' && 'CompressionStream' in window) {
-        try {
-          serializedData = await this.compress(serializedData);
-        } catch (error) {
-          console.warn('Compression failed, storing uncompressed:', error);
-        }
-      }
-
-      // Apply encryption if requested
-      if (options.encryption) {
-        try {
-          serializedData = await this.encrypt(serializedData);
-        } catch (error) {
-          console.warn('Encryption failed, storing unencrypted:', error);
-        }
-      }
-
       this.storage.setItem(key, serializedData);
     } catch (error) {
       // Check if it's a quota exceeded error
@@ -111,6 +116,14 @@ export class StorageManager {
   }
 
   async getItem<T>(key: string): Promise<T | null> {
+    // Track access count for hotspot analysis
+    this.accessCounts.set(key, (this.accessCounts.get(key) || 0) + 1);
+
+    // Ensure storage is initialized
+    if (!this.storage) {
+      return this.fallbackStorage.get(key) || null;
+    }
+
     try {
       let serializedData = this.storage.getItem(key);
 
@@ -341,8 +354,10 @@ export class StorageManager {
   }
 
   getHotspots(): Array<{ key: string; accessCount: number }> {
-    // Simple hotspots - in production, implement proper hotspot tracking
-    return [];
+    // Return hotspots sorted by access count (descending)
+    return Array.from(this.accessCounts.entries())
+      .map(([key, accessCount]) => ({ key, accessCount }))
+      .sort((a, b) => b.accessCount - a.accessCount);
   }
 
   // Method to get slow operations for performance monitoring

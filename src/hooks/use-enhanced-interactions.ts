@@ -70,61 +70,68 @@ export function useEnhancedInteractions(options: UseEnhancedInteractionsOptions 
       return;
     }
 
-    const manager = new InteractionManager(element, getAdaptedConfig());
-    managerRef.current = manager;
+    try {
+      const manager = new InteractionManager(element, getAdaptedConfig());
+      managerRef.current = manager;
 
-    // Register callbacks
-    const callbacks = new Map<string, GestureCallback>();
+      // Register callbacks
+      const callbacks = new Map<string, GestureCallback>();
 
-    if (onSwipe) {
-      const callback = (gesture: GestureState) => onSwipe(gesture);
-      callbacks.set('swipe', callback);
-      manager.on('swipe', callback);
+      if (onSwipe) {
+        const callback = (gesture: GestureState) => onSwipe(gesture);
+        callbacks.set('swipe', callback);
+        manager.on('swipe', callback);
+      }
+
+      if (onTap) {
+        const callback = (gesture: GestureState) => onTap(gesture);
+        callbacks.set('tap', callback);
+        manager.on('tap', callback);
+      }
+
+      if (onDoubleTap) {
+        const callback = (gesture: GestureState) => onDoubleTap(gesture);
+        callbacks.set('doubletap', callback);
+        manager.on('doubletap', callback);
+      }
+
+      if (onLongPress) {
+        const callback = (gesture: GestureState) => onLongPress(gesture);
+        callbacks.set('longpress', callback);
+        manager.on('longpress', callback);
+      }
+
+      if (onPinch) {
+        const callback = (gesture: GestureState) => onPinch(gesture);
+        callbacks.set('pinch', callback);
+        manager.on('pinch', callback);
+      }
+
+      if (onPan) {
+        const callback = (gesture: GestureState) => onPan(gesture);
+        callbacks.set('pan', callback);
+        manager.on('pan', callback);
+      }
+
+      if (onMove) {
+        const callback = (gesture: GestureState) => onMove(gesture);
+        callbacks.set('move', callback);
+        manager.on('move', callback);
+      }
+
+      if (onEnd) {
+        const callback = (gesture: GestureState) => onEnd(gesture);
+        callbacks.set('end', callback);
+        manager.on('end', callback);
+      }
+
+      callbacksRef.current = callbacks;
+    } catch (error) {
+      console.warn('Failed to create InteractionManager:', error);
+      // Gracefully handle the error by not setting up the manager
+      managerRef.current = null;
+      callbacksRef.current.clear();
     }
-
-    if (onTap) {
-      const callback = (gesture: GestureState) => onTap(gesture);
-      callbacks.set('tap', callback);
-      manager.on('tap', callback);
-    }
-
-    if (onDoubleTap) {
-      const callback = (gesture: GestureState) => onDoubleTap(gesture);
-      callbacks.set('doubletap', callback);
-      manager.on('doubletap', callback);
-    }
-
-    if (onLongPress) {
-      const callback = (gesture: GestureState) => onLongPress(gesture);
-      callbacks.set('longpress', callback);
-      manager.on('longpress', callback);
-    }
-
-    if (onPinch) {
-      const callback = (gesture: GestureState) => onPinch(gesture);
-      callbacks.set('pinch', callback);
-      manager.on('pinch', callback);
-    }
-
-    if (onPan) {
-      const callback = (gesture: GestureState) => onPan(gesture);
-      callbacks.set('pan', callback);
-      manager.on('pan', callback);
-    }
-
-    if (onMove) {
-      const callback = (gesture: GestureState) => onMove(gesture);
-      callbacks.set('move', callback);
-      manager.on('move', callback);
-    }
-
-    if (onEnd) {
-      const callback = (gesture: GestureState) => onEnd(gesture);
-      callbacks.set('end', callback);
-      manager.on('end', callback);
-    }
-
-    callbacksRef.current = callbacks;
   }, [
     disabled,
     onSwipe,

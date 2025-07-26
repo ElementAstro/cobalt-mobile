@@ -24,6 +24,8 @@ describe('useAccessibleInteractive', () => {
       const props = result.current.getAccessibleProps();
 
       expect(props).toEqual({
+        ref: expect.any(Object),
+        className: expect.any(String),
         role: 'button',
         tabIndex: 0,
         'aria-label': 'Test button',

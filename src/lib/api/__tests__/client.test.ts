@@ -7,6 +7,21 @@ import { apiClient, ApiClient, ApiCache, RequestQueue } from '../client';
 // Mock fetch
 global.fetch = jest.fn();
 
+// Mock AbortSignal.timeout if it doesn't exist
+if (!AbortSignal.timeout) {
+  AbortSignal.timeout = jest.fn((delay: number) => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), delay);
+    return controller.signal;
+  });
+}
+
+// Mock navigator.onLine
+Object.defineProperty(navigator, 'onLine', {
+  writable: true,
+  value: true,
+});
+
 // Mock environment variable
 process.env.NEXT_PUBLIC_API_BASE_URL = 'http://localhost:3001/api';
 
@@ -17,11 +32,25 @@ describe('ApiClient', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     client = apiClient; // Use the singleton instance
+
+    // Clear API cache to prevent test interference
+    client.clearCache();
+
+    // Reset online status
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      value: true,
+    });
   });
 
   describe('Constructor', () => {
     it('should initialize client instance', () => {
       expect(client).toBeInstanceOf(ApiClient);
+    });
+
+    it('should have AbortSignal.timeout available', () => {
+      expect(AbortSignal.timeout).toBeDefined();
+      expect(typeof AbortSignal.timeout).toBe('function');
     });
   });
 
@@ -46,7 +75,7 @@ describe('ApiClient', () => {
       });
       expect(result).toEqual({
         success: true,
-        data: mockResponse,
+        data: 'test', // This is responseData.data from { data: 'test' }
         message: undefined,
         errors: undefined,
         meta: undefined
@@ -62,15 +91,25 @@ describe('ApiClient', () => {
         headers: new Headers({ 'content-type': 'application/json' }),
       } as Response);
 
-      await client.get('/test', { timeout: 5000 });
+      const result = await client.get('/test', { timeout: 5000 });
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:3001/api/test',
         expect.objectContaining({
           method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
           signal: expect.any(AbortSignal),
         })
       );
+      expect(result).toEqual({
+        success: true,
+        data: 'test',
+        message: undefined,
+        errors: undefined,
+        meta: undefined
+      });
     });
 
     it('should handle GET request with custom headers', async () => {
@@ -121,7 +160,7 @@ describe('ApiClient', () => {
       });
       expect(result).toEqual({
         success: true,
-        data: mockResponse,
+        data: mockResponse, // Since mockResponse has no .data property, it returns the whole object
         message: undefined,
         errors: undefined,
         meta: undefined
@@ -190,11 +229,12 @@ describe('ApiClient', () => {
 
   describe('DELETE Requests', () => {
     it('should make DELETE request successfully', async () => {
+      const mockResponse = { success: true };
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 204,
-        json: async () => ({}),
-        headers: new Headers(),
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
       } as Response);
 
       const result = await client.delete('/test/1');
@@ -206,7 +246,13 @@ describe('ApiClient', () => {
         },
         signal: expect.any(AbortSignal),
       });
-      expect(result).toEqual({ success: true, data: {} });
+      expect(result).toEqual({
+        success: true,
+        data: mockResponse,
+        message: undefined,
+        errors: undefined,
+        meta: undefined
+      });
     });
   });
 
@@ -219,25 +265,37 @@ describe('ApiClient', () => {
         statusText: 'Not Found',
         json: async () => errorResponse,
         headers: new Headers({ 'content-type': 'application/json' }),
+        body: null,
+        bodyUsed: false,
+        redirected: false,
+        type: 'basic',
+        url: 'http://localhost:3001/api/nonexistent',
+        clone: () => ({} as Response),
+        arrayBuffer: async () => new ArrayBuffer(0),
+        blob: async () => new Blob(),
+        formData: async () => new FormData(),
+        text: async () => JSON.stringify(errorResponse),
       } as Response);
 
-      await expect(client.get('/nonexistent')).rejects.toThrow('Not found');
+      await expect(client.get('/nonexistent', { retries: 0 })).rejects.toThrow('Not found');
     });
 
     it('should handle network errors', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(client.get('/test')).rejects.toThrow('Network error');
+      await expect(client.get('/test', { retries: 0 })).rejects.toThrow('Network error');
     });
 
     it('should handle timeout errors', async () => {
       mockFetch.mockImplementationOnce(() =>
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('AbortError')), 100)
-        )
+        new Promise((_, reject) => {
+          const error = new Error('Request timeout');
+          error.name = 'AbortError';
+          setTimeout(() => reject(error), 100);
+        })
       );
 
-      await expect(client.get('/test', { timeout: 50 })).rejects.toThrow();
+      await expect(client.get('/test', { timeout: 50, retries: 0 })).rejects.toThrow('Request timeout');
     });
 
     it('should handle JSON parsing errors', async () => {
@@ -259,7 +317,7 @@ describe('ApiClient', () => {
         formData: async () => new FormData(),
       } as Response);
 
-      await expect(client.get('/test')).rejects.toThrow();
+      await expect(client.get('/test', { retries: 0 })).rejects.toThrow();
     });
   });
 

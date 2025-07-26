@@ -37,13 +37,26 @@ const mockStore = {
 };
 
 jest.mock('@/lib/store', () => ({
-  useAppStore: () => mockStore,
+  useAppStore: jest.fn(() => mockStore),
 }));
 
 // Mock telescope utilities
 jest.mock('../../utils/telescope.utils', () => ({
   validateSlewTarget: jest.fn(() => ({ isValid: true, errors: [] })),
-  canPerformOperation: jest.fn(() => true),
+  canPerformOperation: jest.fn((operation: string, status: any) => {
+    switch (operation) {
+      case 'slew':
+        return !status.slewing && !status.parked;
+      case 'track':
+        return !status.parked;
+      case 'guide':
+        return !status.parked && status.tracking;
+      case 'move':
+        return !status.parked && !status.slewing;
+      default:
+        return false;
+    }
+  }),
 }));
 
 describe('useTelescope', () => {
