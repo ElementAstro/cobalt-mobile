@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 interface PerformanceMetrics {
   renderTime: number;
@@ -32,101 +32,91 @@ export function usePerformance(
   const mountCount = useRef<number>(0);
   const rerenderCount = useRef<number>(0);
   const isInitialRender = useRef<boolean>(true);
-  const [metrics, setMetrics] = useState<PerformanceMetrics>({
+  const metricsRef = useRef<PerformanceMetrics>({
     renderTime: 0,
     componentMounts: 0,
     rerenders: 0,
     lastRenderTime: 0,
   });
 
+
+
+
+  // Set render start time at the beginning of each render
+  if (typeof performance !== 'undefined' && performance.now) {
+    renderStartTime.current = performance.now();
+    if (process.env.NODE_ENV === 'test' && logToConsole) {
+      console.log('Render start time:', renderStartTime.current);
+    }
+  }
+
+  // Track rerenders during render phase
+  if (!isInitialRender.current) {
+    rerenderCount.current += 1;
+  } else {
+    isInitialRender.current = false;
+    mountCount.current = 1; // Initialize mount count
+  }
+
+  // Update metrics synchronously during render
+  const renderEndTime = typeof performance !== 'undefined' && performance.now ? performance.now() : 0;
+  const renderTime = renderEndTime - renderStartTime.current;
+
+  let memoryUsage: number | undefined;
+  if (trackMemory && typeof performance !== 'undefined' && 'memory' in performance) {
+    const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
+    memoryUsage = memory?.usedJSHeapSize ?? 0;
+  }
+
+  // Update metrics ref synchronously
+  metricsRef.current = {
+    renderTime,
+    memoryUsage,
+    componentMounts: mountCount.current,
+    rerenders: rerenderCount.current,
+    lastRenderTime: renderEndTime,
+  };
+
+
+
+  // Set start time for next render
+  if (typeof performance !== 'undefined' && performance.now) {
+    renderStartTime.current = performance.now();
+  }
+
   // Track component mount
   useEffect(() => {
-    mountCount.current += 1;
-    setMetrics(prev => ({
-      ...prev,
-      componentMounts: mountCount.current,
-    }));
     if (logToConsole) {
       console.log(`🏗️ ${componentName} mounted (${mountCount.current} times)`);
     }
   }, [componentName, logToConsole]);
 
-  // Track render start
+  // Handle warnings after render
   useEffect(() => {
-    if (typeof performance !== 'undefined' && performance.now) {
-      renderStartTime.current = performance.now();
+    if (logToConsole && metricsRef.current.renderTime > threshold) {
+      console.warn(
+        `⚠️ ${componentName} slow render: ${metricsRef.current.renderTime.toFixed(2)}ms (threshold: ${threshold}ms)`
+      );
     }
   });
 
-  // Track render end and calculate metrics
-  useLayoutEffect(() => {
-    if (typeof performance === 'undefined' || !performance.now) {
-      return;
-    }
 
-    const renderEndTime = performance.now();
-    const renderTime = renderEndTime - renderStartTime.current;
-
-    // Only increment rerender count after the initial render
-    if (!isInitialRender.current) {
-      rerenderCount.current += 1;
-    } else {
-      isInitialRender.current = false;
-    }
-
-    let memoryUsage: number | undefined;
-    if (trackMemory && 'memory' in performance) {
-      const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
-      memoryUsage = memory?.usedJSHeapSize ?? 0; // Return raw bytes as expected by tests
-    }
-
-    const newMetrics: PerformanceMetrics = {
-      renderTime,
-      memoryUsage,
-      componentMounts: mountCount.current,
-      rerenders: rerenderCount.current,
-      lastRenderTime: renderEndTime,
-    };
-
-    // Use a ref to store the latest metrics to avoid triggering re-renders
-    // and update state only during the next tick to break the cycle
-    const timeoutId = setTimeout(() => {
-      setMetrics(newMetrics);
-    }, 0);
-
-    if (logToConsole) {
-      if (renderTime > threshold) {
-        console.warn(
-          `⚠️ ${componentName} slow render: ${renderTime.toFixed(2)}ms (threshold: ${threshold}ms)`
-        );
-      } else {
-        console.log(
-          `⚡ ${componentName} render: ${renderTime.toFixed(2)}ms`
-        );
-      }
-
-      if (memoryUsage) {
-        console.log(`💾 Memory usage: ${memoryUsage.toFixed(2)}MB`);
-      }
-    }
-
-    return () => clearTimeout(timeoutId);
-  }); // Runs on every render but defers state updates
 
   const getAverageRenderTime = useCallback(() => {
     // This would require storing historical data
-    return metrics.renderTime;
-  }, [metrics.renderTime]);
+    return metricsRef.current.renderTime;
+  }, []);
 
   const resetMetrics = useCallback(() => {
     mountCount.current = 0;
     rerenderCount.current = 0;
-    setMetrics({
+    const resetMetrics = {
       renderTime: 0,
       componentMounts: 0,
       rerenders: 0,
       lastRenderTime: 0,
-    });
+    };
+    metricsRef.current = resetMetrics;
   }, []);
 
   // Performance measurement utilities
@@ -170,10 +160,10 @@ export function usePerformance(
   }, [startMeasure, endMeasure]);
 
   return {
-    metrics,
+    metrics: metricsRef.current,
     getAverageRenderTime,
     resetMetrics,
-    isSlowRender: metrics.renderTime > threshold,
+    isSlowRender: metricsRef.current.renderTime > threshold,
     startMeasure,
     endMeasure,
     measureFunction,
@@ -335,12 +325,13 @@ export function useThrottle<T extends (...args: unknown[]) => unknown>(
         clearTimeout(timeoutRef.current);
       }
 
+      const remainingTime = delay - (now - lastCall.current);
       timeoutRef.current = setTimeout(() => {
         lastCall.current = Date.now();
         if (lastArgs.current) {
           callback(...lastArgs.current);
         }
-      }, delay - (now - lastCall.current));
+      }, remainingTime);
     }
   }, [callback, delay]) as T;
 
@@ -374,21 +365,39 @@ export function useFrameRate(options: { lowFPSThreshold?: number } = {}) {
       frameCount.current++;
       const currentTime = performance.now();
 
+      // Calculate FPS every second or when we have enough frames
       if (currentTime - lastTime.current >= 1000) {
-        const calculatedFps = Math.round((frameCount.current * 1000) / (currentTime - lastTime.current));
+        const timeDiff = currentTime - lastTime.current;
+        const calculatedFps = Math.round((frameCount.current * 1000) / timeDiff);
         setFps(calculatedFps);
         frameCount.current = 0;
         lastTime.current = currentTime;
       }
 
-      animationFrame.current = requestAnimationFrame(updateFps);
+      // Continue the animation loop
+      if (typeof requestAnimationFrame !== 'undefined') {
+        animationFrame.current = requestAnimationFrame(updateFps);
+      } else {
+        // Fallback for test environments
+        animationFrame.current = setTimeout(updateFps, 16) as any;
+      }
     };
 
-    animationFrame.current = requestAnimationFrame(updateFps);
+    // Start the FPS monitoring
+    if (typeof requestAnimationFrame !== 'undefined') {
+      animationFrame.current = requestAnimationFrame(updateFps);
+    } else {
+      // Fallback for test environments
+      animationFrame.current = setTimeout(updateFps, 16) as any;
+    }
 
     return () => {
       if (animationFrame.current) {
-        cancelAnimationFrame(animationFrame.current);
+        if (typeof cancelAnimationFrame !== 'undefined') {
+          cancelAnimationFrame(animationFrame.current);
+        } else {
+          clearTimeout(animationFrame.current);
+        }
       }
     };
   }, []);

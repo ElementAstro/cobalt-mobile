@@ -25,6 +25,9 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { simulationEngine, EnvironmentalConditions } from '@/lib/simulation-engine';
+import { useWeatherStore } from '@/lib/stores/weather-store';
+import { weatherService } from '@/lib/weather/weather-service';
+import { WeatherDashboard } from '@/components/weather/weather-dashboard';
 
 interface Target {
   id: string;
@@ -87,6 +90,16 @@ export function AdvancedSequencePlanner() {
   const [availableTime, setAvailableTime] = useState(480); // minutes
   const [currentTab, setCurrentTab] = useState('targets');
 
+  // Weather integration
+  const {
+    currentWeather,
+    astronomicalConditions,
+    forecast,
+    isGoodForImaging,
+    getImagingQuality,
+    getImagingRecommendation
+  } = useWeatherStore();
+
   // Sample targets database
   const targets: Target[] = [
     {
@@ -146,16 +159,72 @@ export function AdvancedSequencePlanner() {
   const generateSuggestions = useCallback((plan: SequencePlan) => {
     const newSuggestions: PlannerSuggestion[] = [];
 
-    // Weather suggestions
-    if (plan.weatherSuitability < 70) {
+    // Enhanced weather suggestions using real weather data
+    if (currentWeather && astronomicalConditions) {
+      const imagingQuality = getImagingQuality();
+
+      if (imagingQuality < 40) {
+        newSuggestions.push({
+          type: 'warning',
+          message: `Poor imaging conditions (${imagingQuality}% quality). ${getImagingRecommendation()}`
+        });
+      } else if (imagingQuality < 70) {
+        newSuggestions.push({
+          type: 'warning',
+          message: `Suboptimal conditions (${imagingQuality}% quality). Consider shorter exposures or wait for improvement.`
+        });
+      }
+
+      // Specific weather condition warnings
+      if (currentWeather.cloudCover > 50) {
+        newSuggestions.push({
+          type: 'warning',
+          message: `High cloud cover (${currentWeather.cloudCover}%). Monitor weather closely.`
+        });
+      }
+
+      if (currentWeather.windSpeed > 25) {
+        newSuggestions.push({
+          type: 'warning',
+          message: `High wind speed (${Math.round(currentWeather.windSpeed)} km/h). Consider securing equipment and shorter exposures.`
+        });
+      }
+
+      if (astronomicalConditions.seeing > 3.5) {
+        newSuggestions.push({
+          type: 'warning',
+          message: `Poor seeing conditions (${astronomicalConditions.seeing.toFixed(1)}"). Consider shorter exposures.`
+        });
+      }
+
+      // Best imaging window suggestion
+      if (forecast) {
+        const bestWindow = weatherService.findBestImagingWindow(forecast, plan.totalTime / 60);
+        if (bestWindow && bestWindow.quality > imagingQuality + 20) {
+          const startTime = bestWindow.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          newSuggestions.push({
+            type: 'optimization',
+            message: `Better conditions expected starting at ${startTime} (${Math.round(bestWindow.quality)}% quality).`
+          });
+        }
+      }
+    } else if (plan.weatherSuitability < 70) {
       newSuggestions.push({
         type: 'warning',
         message: 'Weather conditions may not be optimal for imaging. Consider rescheduling.'
       });
     }
 
-    // Moon impact suggestions
-    if (plan.moonImpact === 'high') {
+    // Moon impact suggestions with enhanced data
+    if (astronomicalConditions) {
+      const moonImpact = calculateMoonImpact(planningDate, plan.target, astronomicalConditions);
+      if (moonImpact === 'high') {
+        newSuggestions.push({
+          type: 'warning',
+          message: `High moon illumination (${Math.round(astronomicalConditions.moonIllumination)}%). Consider narrowband filters or wait for new moon.`
+        });
+      }
+    } else if (plan.moonImpact === 'high') {
       newSuggestions.push({
         type: 'warning',
         message: 'High moon illumination may affect image quality. Consider narrowband filters or wait for new moon.'
@@ -188,11 +257,11 @@ export function AdvancedSequencePlanner() {
     }
 
     setSuggestions(newSuggestions);
-  }, [planningDate]);
+  }, [planningDate, currentWeather, astronomicalConditions, forecast, getImagingQuality, getImagingRecommendation]);
 
   const generateSequencePlan = useCallback((target: Target) => {
     const environmentalConditions = simulationEngine.getEnvironmentalConditions();
-    
+
     // Calculate optimal exposure distribution
     const filters = Object.entries(target.recommendedExposure)
       .filter(([, exposure]) => exposure > 0)
@@ -207,7 +276,16 @@ export function AdvancedSequencePlanner() {
       });
 
     const totalImagingTime = filters.reduce((sum, f) => sum + f.totalTime, 0);
-    
+
+    // Use real weather data if available, otherwise fall back to simulation
+    const weatherSuitability = currentWeather && astronomicalConditions
+      ? getImagingQuality()
+      : calculateWeatherSuitability(environmentalConditions);
+
+    const moonImpact = astronomicalConditions
+      ? calculateMoonImpact(planningDate, target, astronomicalConditions)
+      : calculateMoonImpactFallback(planningDate, target);
+
     const plan: SequencePlan = {
       id: `plan-${Date.now()}`,
       name: `${target.name} - ${planningDate.toDateString()}`,
@@ -224,13 +302,13 @@ export function AdvancedSequencePlanner() {
       autoFocusInterval: 60, // minutes
       ditherFrequency: 5, // every 5 frames
       estimatedCompletion: Math.min(100, (totalImagingTime / (availableTime * 0.8)) * 100),
-      weatherSuitability: calculateWeatherSuitability(environmentalConditions),
-      moonImpact: calculateMoonImpact(planningDate, target)
+      weatherSuitability,
+      moonImpact
     };
 
     setSequencePlan(plan);
     generateSuggestions(plan);
-  }, [availableTime, planningDate, generateSuggestions]);
+  }, [availableTime, planningDate, generateSuggestions, currentWeather, astronomicalConditions, getImagingQuality]);
 
   useEffect(() => {
     if (selectedTarget) {
@@ -249,14 +327,37 @@ export function AdvancedSequencePlanner() {
     return Math.max(0, score);
   };
 
-  const calculateMoonImpact = (date: Date, target: Target): 'none' | 'low' | 'medium' | 'high' => {
+  // Enhanced moon impact calculation with real astronomical data
+  const calculateMoonImpact = (date: Date, target: Target, astroConditions: any): 'none' | 'low' | 'medium' | 'high' => {
+    const moonIllumination = astroConditions.moonIllumination / 100;
+    const moonAltitude = astroConditions.moonAltitude;
+
+    // Moon below horizon has no impact
+    if (moonAltitude < 0) return 'none';
+
+    // Consider target type and recommended filters
+    if (target.type === 'nebula' && target.recommendedFilters.includes('Ha')) {
+      // Narrowband imaging is less affected by moon
+      if (moonIllumination > 0.8 && moonAltitude > 30) return 'medium';
+      return 'low';
+    }
+
+    // Broadband imaging is more affected
+    if (moonIllumination > 0.8 && moonAltitude > 45) return 'high';
+    if (moonIllumination > 0.5 && moonAltitude > 30) return 'medium';
+    if (moonIllumination > 0.2 && moonAltitude > 15) return 'low';
+    return 'none';
+  };
+
+  // Fallback moon impact calculation for when no real data is available
+  const calculateMoonImpactFallback = (date: Date, target: Target): 'none' | 'low' | 'medium' | 'high' => {
     // Simplified moon phase calculation
     const moonPhase = simulationEngine.getEnvironmentalConditions().moonPhase;
-    
+
     if (target.type === 'nebula' && target.recommendedFilters.includes('Ha')) {
       return moonPhase > 0.7 ? 'medium' : 'low';
     }
-    
+
     if (moonPhase > 0.8) return 'high';
     if (moonPhase > 0.5) return 'medium';
     if (moonPhase > 0.2) return 'low';
@@ -314,9 +415,10 @@ export function AdvancedSequencePlanner() {
       </div>
 
       <Tabs value={currentTab} onValueChange={setCurrentTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="targets">Target Selection</TabsTrigger>
           <TabsTrigger value="planning">Sequence Planning</TabsTrigger>
+          <TabsTrigger value="weather">Weather</TabsTrigger>
           <TabsTrigger value="optimization">Optimization</TabsTrigger>
           <TabsTrigger value="execution">Execution</TabsTrigger>
         </TabsList>
@@ -444,6 +546,10 @@ export function AdvancedSequencePlanner() {
               </Card>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="weather" className="space-y-4">
+          <WeatherDashboard />
         </TabsContent>
 
         <TabsContent value="optimization" className="space-y-4">

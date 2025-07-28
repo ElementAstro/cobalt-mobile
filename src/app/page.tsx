@@ -8,6 +8,10 @@ import SwipeGestureHandler from '@/components/swipe-gesture-handler';
 import { PullToRefreshContainer } from '@/components/ui/pull-to-refresh';
 import { FloatingActionButton } from '@/components/ui/floating-action-button';
 import { EnhancedNavigation } from '@/components/ui/enhanced-navigation';
+import { WeatherDashboard } from '@/components/weather/weather-dashboard';
+import { ImageAnalysisDashboard } from '@/components/image-analysis/image-analysis-dashboard';
+import { EquipmentHealthDashboard } from '@/components/equipment-health/equipment-health-dashboard';
+import { GuidingDashboard } from '@/components/guiding/guiding-dashboard';
 import { VerticalLayout, VerticalLayoutPresets } from '@/components/ui/vertical-layout';
 import { OptimizedMotion } from '@/components/ui/optimized-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -279,11 +283,58 @@ export default function Home() {
       });
     }
 
+    // Handle feature-specific pages
+    if (selectedView === 'weather') {
+      return [
+        {
+          id: 'weather-page',
+          title: 'Weather & Conditions',
+          content: <WeatherDashboard />,
+          priority: 'high' as const,
+        },
+      ];
+    }
+
+    if (selectedView === 'analysis') {
+      return [
+        {
+          id: 'analysis-page',
+          title: 'Image Analysis',
+          content: <ImageAnalysisDashboard />,
+          priority: 'high' as const,
+        },
+      ];
+    }
+
+    if (selectedView === 'health') {
+      return [
+        {
+          id: 'health-page',
+          title: 'Equipment Health',
+          content: <EquipmentHealthDashboard />,
+          priority: 'high' as const,
+        },
+      ];
+    }
+
+    if (selectedView === 'guiding') {
+      return [
+        {
+          id: 'guiding-page',
+          title: 'Guiding & Polar Alignment',
+          content: <GuidingDashboard />,
+          priority: 'high' as const,
+        },
+      ];
+    }
+
     // For other views, show simplified content
     return [
       {
         id: 'main-content',
-        title: selectedView === 'devices' ? 'Equipment Status' : 'Sequence Planning',
+        title: selectedView === 'devices' ? 'Equipment Status' :
+               selectedView === 'targets' ? 'Target Planning' :
+               'Sequence Planning',
         content: (
           <Card>
             <CardHeader>
@@ -293,9 +344,14 @@ export default function Home() {
                     <Compass className="h-5 w-5" />
                     Equipment Management
                   </>
-                ) : (
+                ) : selectedView === 'targets' ? (
                   <>
                     <Target className="h-5 w-5" />
+                    Target Planning
+                  </>
+                ) : (
+                  <>
+                    <Activity className="h-5 w-5" />
                     Imaging Sequences
                   </>
                 )}
@@ -305,11 +361,15 @@ export default function Home() {
               <p className="text-muted-foreground mb-4">
                 {selectedView === 'devices'
                   ? 'Connect and manage your astrophotography equipment.'
+                  : selectedView === 'targets'
+                  ? 'Plan optimal imaging targets and sessions.'
                   : 'Plan and execute automated imaging sequences.'
                 }
               </p>
               <Button className="w-full">
-                {selectedView === 'devices' ? 'Scan for Devices' : 'Create New Sequence'}
+                {selectedView === 'devices' ? 'Scan for Devices' :
+                 selectedView === 'targets' ? 'Browse Targets' :
+                 'Create New Sequence'}
               </Button>
             </CardContent>
           </Card>
@@ -348,7 +408,7 @@ export default function Home() {
       <div ref={gestureRef as React.RefObject<HTMLDivElement>} className="relative min-h-screen">
         <EnhancedGestureNavigation
           onSwipeLeft={() => {
-            const views: CurrentPage[] = ['dashboard', 'devices', 'sequence'];
+            const views: CurrentPage[] = ['dashboard', 'weather', 'analysis', 'health', 'guiding', 'devices', 'sequence', 'targets'];
             const currentIndex = views.indexOf(selectedView);
             if (currentIndex !== -1) {
               const nextIndex = (currentIndex + 1) % views.length;
@@ -356,7 +416,7 @@ export default function Home() {
             }
           }}
           onSwipeRight={() => {
-            const views: CurrentPage[] = ['dashboard', 'devices', 'sequence'];
+            const views: CurrentPage[] = ['dashboard', 'weather', 'analysis', 'health', 'guiding', 'devices', 'sequence', 'targets'];
             const currentIndex = views.indexOf(selectedView);
             if (currentIndex !== -1) {
               const prevIndex = (currentIndex - 1 + views.length) % views.length;

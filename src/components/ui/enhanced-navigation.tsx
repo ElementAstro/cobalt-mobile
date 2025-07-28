@@ -21,9 +21,13 @@ import {
   AlertTriangle,
   // CheckCircle, // Unused for now
   Clock,
-  // Target, // Unused for now
+  Target,
   ChevronUp,
   ChevronDown,
+  Cloud,
+  Camera,
+  Heart,
+  Crosshair,
 } from 'lucide-react';
 import { useAppStore, CurrentPage } from '@/lib/store';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -107,6 +111,31 @@ export function EnhancedNavigation({ className, compact = false, onPageChange }:
       icon: Activity,
       badge: sequenceStatus.running ? 'RUNNING' : undefined,
       color: sequenceStatus.running ? 'default' : undefined,
+    },
+    {
+      id: 'weather',
+      label: 'Weather',
+      icon: Cloud,
+    },
+    {
+      id: 'analysis',
+      label: 'Analysis',
+      icon: Camera,
+    },
+    {
+      id: 'targets',
+      label: 'Targets',
+      icon: Target,
+    },
+    {
+      id: 'health',
+      label: 'Health',
+      icon: Heart,
+    },
+    {
+      id: 'guiding',
+      label: 'Guiding',
+      icon: Crosshair,
     },
     {
       id: 'planner',

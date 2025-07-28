@@ -1,5 +1,8 @@
 import { createEnhancedStore, createAsyncAction } from './base-store';
 
+// Re-export EquipmentProfile from the API for convenience
+export type { EquipmentProfile } from '../api/equipment';
+
 // Equipment types
 export interface EquipmentStatus {
   camera: 'connected' | 'disconnected' | 'error' | 'connecting';

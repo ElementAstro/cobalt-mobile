@@ -40,6 +40,10 @@ import {
 import { motion } from 'framer-motion';
 import { EquipmentStatus, EnvironmentalData, SequenceStatus } from '@/lib/store';
 import { simulationEngine } from '@/lib/simulation-engine';
+import { WeatherDashboard } from '@/components/weather/weather-dashboard';
+import { ImageAnalysisDashboard } from '@/components/image-analysis/image-analysis-dashboard';
+import { EquipmentHealthDashboard } from '@/components/equipment-health/equipment-health-dashboard';
+import { GuidingDashboard } from '@/components/guiding/guiding-dashboard';
 
 interface EnhancedDashboardProps {
   equipmentStatus: EquipmentStatus;
@@ -373,6 +377,42 @@ export const EnhancedDashboard = memo(function EnhancedDashboard({
             </div>
           </CardContent>
         </Card>
+      </motion.div>
+
+      {/* Weather Conditions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.3 }}
+      >
+        <WeatherDashboard compact={true} />
+      </motion.div>
+
+      {/* Image Analysis */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.4 }}
+      >
+        <ImageAnalysisDashboard compact={true} />
+      </motion.div>
+
+      {/* Equipment Health Monitoring */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.5 }}
+      >
+        <EquipmentHealthDashboard compact={true} />
+      </motion.div>
+
+      {/* Guiding & Polar Alignment */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.6 }}
+      >
+        <GuidingDashboard compact={true} />
       </motion.div>
 
       {/* Sequence Control */}

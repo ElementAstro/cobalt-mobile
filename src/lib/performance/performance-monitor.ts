@@ -362,25 +362,6 @@ export class PerformanceMonitor {
     }
   }
 
-  // Method for getting slow operations
-  getSlowOperations(threshold: number): Array<{ name: string; duration: number }> {
-    if (typeof performance === 'undefined' || !performance.getEntriesByType) {
-      return [];
-    }
-
-    try {
-      const measureEntries = performance.getEntriesByType('measure') as PerformanceMeasure[];
-      return measureEntries
-        .filter(entry => entry.duration > threshold)
-        .map(entry => ({
-          name: entry.name,
-          duration: entry.duration,
-        }));
-    } catch (error) {
-      console.warn('Failed to get slow operations:', error);
-      return [];
-    }
-  }
 
   // Utility method for measuring async function execution
   async measureAsync<T>(name: string, fn: () => Promise<T>): Promise<T> {
