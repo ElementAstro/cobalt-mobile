@@ -1,0 +1,226 @@
+/* Desktop Layout Optimizations */
+
+/* Ensure proper scrolling behavior for desktop layouts */
+.desktop-layout-container {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Fixed sidebar styling */
+.desktop-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 40;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Fixed header styling */
+.desktop-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 30;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Main content area with proper scrolling */
+.desktop-main-content {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Ensure content is properly spaced from fixed elements */
+.desktop-content-wrapper {
+  min-height: calc(100vh - 80px);
+  padding-top: 0;
+}
+
+/* Fixed right panel styling */
+.desktop-right-panel {
+  position: fixed;
+  right: 0;
+  z-index: 30;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Smooth transitions for layout changes */
+.desktop-layout-transition {
+  transition: margin-left 0.3s ease-in-out, margin-right 0.3s ease-in-out;
+}
+
+/* Ensure proper z-index stacking */
+.desktop-layout-backdrop {
+  z-index: 20;
+}
+
+/* Custom scrollbar for desktop */
+.desktop-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.desktop-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.desktop-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.desktop-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode scrollbar */
+.dark .desktop-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark .desktop-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Ensure content doesn't get cut off */
+.desktop-content-safe-area {
+  padding-bottom: 2rem;
+}
+
+/* Responsive adjustments for different desktop sizes */
+@media (min-width: 1024px) {
+  .desktop-layout-container {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .desktop-layout-container {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .desktop-layout-container {
+    font-size: 18px;
+  }
+}
+
+/* Ensure proper focus management */
+.desktop-layout-container:focus-within {
+  outline: none;
+}
+
+/* Prevent content from being hidden behind fixed elements */
+.desktop-main-content-offset {
+  margin-top: 80px;
+  height: calc(100vh - 80px);
+}
+
+/* Ensure proper spacing for dashboard content */
+.desktop-dashboard-content {
+  padding: 1.5rem;
+  max-width: none;
+}
+
+@media (min-width: 1280px) {
+  .desktop-dashboard-content {
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .desktop-dashboard-content {
+    padding: 2.5rem;
+  }
+}
+
+/* Grid optimizations for desktop */
+.desktop-grid-container {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .desktop-grid-container {
+    gap: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .desktop-grid-container {
+    gap: 2.5rem;
+  }
+}
+
+/* Card optimizations for desktop */
+.desktop-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.desktop-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.dark .desktop-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Ensure proper text rendering on desktop */
+.desktop-text-rendering {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Performance optimizations */
+.desktop-layout-gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Ensure proper layout on ultra-wide screens */
+@media (min-width: 1920px) {
+  .desktop-layout-container {
+    max-width: 1920px;
+    margin: 0 auto;
+  }
+}
+
+/* Debug styles (only in development) */
+.desktop-debug-border {
+  border: 2px solid red !important;
+}
+
+.desktop-debug-content {
+  background: rgba(255, 0, 0, 0.1) !important;
+}
+
+/* Accessibility improvements */
+.desktop-layout-container:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .desktop-layout-transition,
+  .desktop-card {
+    transition: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .desktop-sidebar,
+  .desktop-header,
+  .desktop-right-panel {
+    border-width: 2px;
+  }
+}

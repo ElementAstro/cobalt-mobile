@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Desktop layout optimizations */
+@import '../styles/desktop-layout.css';
+
 /* Mobile-specific enhancements */
 @supports (height: 100dvh) {
   .min-h-screen {
@@ -175,5 +178,31 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Desktop layout specific styles */
+@layer components {
+  /* Ensure proper height for desktop layouts */
+  .desktop-layout-container {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Smooth scrolling for desktop content */
+  .desktop-main-content {
+    scroll-behavior: smooth;
+  }
+
+  /* Ensure content is visible and properly spaced */
+  .desktop-content-wrapper {
+    min-height: calc(100vh - 80px);
+    padding-top: 80px;
+  }
+
+  /* Debug styles for development */
+  .desktop-debug {
+    border: 2px solid red !important;
+    background: rgba(255, 0, 0, 0.1) !important;
   }
 }

@@ -1,10 +1,12 @@
 "use client";
 
 import React from 'react';
-import { cn } from '@/lib/utils';
-import { Loader2, Camera, Target, Activity, Settings, CheckCircle, AlertTriangle } from 'lucide-react';
+import { cn, safeToFixed } from '@/lib/utils';
+import { Loader2, Camera, Target, Activity, Settings, CheckCircle, AlertTriangle, RefreshCw, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 
 interface LoadingSpinnerProps {
@@ -523,6 +525,109 @@ export function LoadingOverlay({
   );
 }
 
+// Enhanced Async State Component for better error handling
+interface AsyncStateProps {
+  loading?: boolean;
+  error?: Error | string | null;
+  data?: any;
+  onRetry?: () => void;
+  loadingComponent?: React.ReactNode;
+  errorComponent?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  loadingText?: string;
+}
+
+export function AsyncState({
+  loading,
+  error,
+  data,
+  onRetry,
+  loadingComponent,
+  errorComponent,
+  children,
+  className,
+  loadingText = "Loading..."
+}: AsyncStateProps) {
+  if (loading) {
+    return (
+      <div className={cn("flex items-center justify-center p-8", className)}>
+        {loadingComponent || (
+          <div className="flex flex-col items-center space-y-4">
+            <LoadingSpinner size="lg" />
+            <p className="text-sm text-muted-foreground">{loadingText}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (error) {
+    const errorMessage = typeof error === 'string' ? error : error.message;
+
+    return (
+      <div className={cn("flex flex-col items-center justify-center p-8 space-y-4", className)}>
+        {errorComponent || (
+          <>
+            <AlertCircle className="h-12 w-12 text-destructive" />
+            <div className="text-center space-y-2">
+              <h3 className="font-semibold">Something went wrong</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                {errorMessage}
+              </p>
+            </div>
+            {onRetry && (
+              <Button onClick={onRetry} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Try Again
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+// Enhanced Loading Card with progress support
+interface LoadingCardProps {
+  title?: string;
+  description?: string;
+  progress?: number;
+  className?: string;
+  icon?: React.ReactNode;
+}
+
+export function LoadingCard({ title, description, progress, className, icon }: LoadingCardProps) {
+  return (
+    <Card className={cn("w-full", className)}>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          {icon || <LoadingSpinner size="sm" />}
+          {title || 'Loading...'}
+        </CardTitle>
+        {description && (
+          <p className="text-sm text-muted-foreground">{description}</p>
+        )}
+      </CardHeader>
+      <CardContent>
+        {progress !== undefined ? (
+          <div className="space-y-2">
+            <Progress value={progress} className="w-full" />
+            <p className="text-xs text-muted-foreground text-center">
+              {safeToFixed(progress, 0)}% complete
+            </p>
+          </div>
+        ) : (
+          <Skeleton lines={2} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 const LoadingStates = {
   LoadingSpinner,
   Skeleton,
@@ -535,6 +640,8 @@ const LoadingStates = {
   ProgressBar,
   PulsingDot,
   LoadingOverlay,
+  AsyncState,
+  LoadingCard,
 };
 
 export default LoadingStates;

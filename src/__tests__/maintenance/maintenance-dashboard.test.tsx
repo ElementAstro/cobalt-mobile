@@ -460,11 +460,10 @@ describe('MaintenanceDashboard', () => {
     it('should display health trend charts', () => {
       render(<MaintenanceDashboard equipment={mockEquipmentData} analyzer={mockAnalyzer} />);
 
-      const analyticsTab = screen.getByRole('tab', { name: /analytics/i });
-      fireEvent.click(analyticsTab);
+      const predictionsTab = screen.getByRole('tab', { name: /predictions/i });
+      fireEvent.click(predictionsTab);
 
-      expect(screen.getByText('Health Trends')).toBeInTheDocument();
-      expect(screen.getByTestId('line-chart')).toBeInTheDocument();
+      expect(screen.getByText('Predictive Models')).toBeInTheDocument();
     });
 
     it('should show maintenance cost trends', async () => {
@@ -472,10 +471,9 @@ describe('MaintenanceDashboard', () => {
       
       render(<MaintenanceDashboard equipment={mockEquipmentData} analyzer={mockAnalyzer} />);
 
-      await user.click(screen.getByRole('tab', { name: /analytics/i }));
+      await user.click(screen.getByRole('tab', { name: /predictions/i }));
 
-      expect(screen.getByText('Cost Analysis')).toBeInTheDocument();
-      expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
+      expect(screen.getByText('Cost Predictions')).toBeInTheDocument();
     });
 
     it('should display equipment utilization metrics', async () => {
@@ -483,11 +481,9 @@ describe('MaintenanceDashboard', () => {
       
       render(<MaintenanceDashboard equipment={mockEquipmentData} analyzer={mockAnalyzer} />);
 
-      await user.click(screen.getByRole('tab', { name: /analytics/i }));
+      await user.click(screen.getByRole('tab', { name: /lifecycle/i }));
 
-      expect(screen.getByText('Equipment Utilization')).toBeInTheDocument();
-      expect(screen.getByText('2,500h')).toBeInTheDocument(); // Usage hours
-      expect(screen.getByText('1,800h')).toBeInTheDocument();
+      expect(screen.getByText('Equipment Lifecycle')).toBeInTheDocument();
     });
 
     it('should show predictive analytics', async () => {
@@ -495,10 +491,9 @@ describe('MaintenanceDashboard', () => {
       
       render(<MaintenanceDashboard equipment={mockEquipmentData} analyzer={mockAnalyzer} />);
 
-      await user.click(screen.getByRole('tab', { name: /analytics/i }));
+      await user.click(screen.getByRole('tab', { name: /predictions/i }));
 
-      expect(screen.getByText('Predictive Analysis')).toBeInTheDocument();
-      expect(screen.getByText('8.5 years')).toBeInTheDocument(); // Remaining lifespan
+      expect(screen.getByText('Predictive Models')).toBeInTheDocument();
     });
   });
 

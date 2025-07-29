@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWeatherStore, defaultLocations, startWeatherAutoRefresh } from '@/lib/stores/weather-store';
-import { cn } from '@/lib/utils';
+import { cn, safeFormatTime, safeFormatDate } from '@/lib/utils';
 import {
   Cloud,
   CloudRain,
@@ -29,6 +29,14 @@ import {
   TrendingDown,
   Minus
 } from 'lucide-react';
+
+// Import desktop layout components
+import {
+  DesktopGrid,
+  DesktopOnly,
+  MobileOnly,
+  useDesktopResponsive
+} from '@/components/layout';
 
 interface WeatherDashboardProps {
   className?: string;
@@ -56,6 +64,7 @@ export function WeatherDashboard({ className, compact = false }: WeatherDashboar
   } = useWeatherStore();
 
   const [selectedTab, setSelectedTab] = useState('current');
+  const { isDesktop } = useDesktopResponsive();
 
   useEffect(() => {
     // Start auto-refresh when component mounts
@@ -96,13 +105,9 @@ export function WeatherDashboard({ className, compact = false }: WeatherDashboar
     return 'destructive';
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-  };
+  // Use safe formatting utilities from utils
+  const formatTime = safeFormatTime;
+  const formatDate = safeFormatDate;
 
   if (compact) {
     return (
@@ -278,7 +283,11 @@ export function WeatherDashboard({ className, compact = false }: WeatherDashboar
               </Card>
 
               {/* Current Weather Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <DesktopGrid
+                columns={{ desktop: 4, wide: 5, ultrawide: 6 }}
+                gap="md"
+                className="md:grid-cols-2 lg:grid-cols-4"
+              >
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
@@ -327,7 +336,7 @@ export function WeatherDashboard({ className, compact = false }: WeatherDashboar
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              </DesktopGrid>
             </>
           ) : (
             <Card>
@@ -349,7 +358,11 @@ export function WeatherDashboard({ className, compact = false }: WeatherDashboar
                   <CardTitle>24-Hour Forecast</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-6 gap-4 overflow-x-auto">
+                  <DesktopGrid
+                    columns={{ desktop: 6, wide: 8, ultrawide: 12 }}
+                    gap="md"
+                    className="grid-cols-6 overflow-x-auto"
+                  >
                     {forecast.hourly.slice(0, 12).map((hour, index) => (
                       <div key={index} className="text-center space-y-2">
                         <div className="text-sm font-medium">
@@ -364,7 +377,7 @@ export function WeatherDashboard({ className, compact = false }: WeatherDashboar
                         <div className="text-xs text-muted-foreground">{hour.cloudCover}%</div>
                       </div>
                     ))}
-                  </div>
+                  </DesktopGrid>
                 </CardContent>
               </Card>
 

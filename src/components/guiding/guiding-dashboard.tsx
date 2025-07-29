@@ -11,7 +11,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useGuidingStore } from '@/lib/stores/guiding-store';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 import {
   Activity,
   Crosshair,
@@ -30,6 +30,14 @@ import {
   WifiOff,
   Zap
 } from 'lucide-react';
+
+// Import desktop layout components
+import {
+  DesktopGrid,
+  DesktopOnly,
+  MobileOnly,
+  useDesktopResponsive
+} from '@/components/layout';
 
 interface GuidingDashboardProps {
   className?: string;
@@ -83,6 +91,7 @@ export function GuidingDashboard({ className, compact = false }: GuidingDashboar
     getRecentGuidingData
   } = useGuidingStore();
 
+  const { isDesktop } = useDesktopResponsive();
   const [selectedStarPosition, setSelectedStarPosition] = useState<{ x: number; y: number } | null>(null);
 
   const handleConnect = async () => {
@@ -198,19 +207,19 @@ export function GuidingDashboard({ className, compact = false }: GuidingDashboar
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {isGuiding && currentSession && (
+          {isGuiding && currentSession && currentRMS && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span>RMS Error</span>
                 <span className={cn("font-medium", getQualityColor(guidingQuality))}>
-                  {currentRMS.total.toFixed(2)}"
+                  {safeToFixed(currentRMS?.total, 2)}"
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>RA: {currentRMS.ra.toFixed(2)}"</div>
-                <div>Dec: {currentRMS.dec.toFixed(2)}"</div>
+                <div>RA: {safeToFixed(currentRMS?.ra, 2)}"</div>
+                <div>Dec: {safeToFixed(currentRMS?.dec, 2)}"</div>
               </div>
-              <Progress value={Math.min(100, (2.0 - currentRMS.total) / 2.0 * 100)} className="h-2" />
+              <Progress value={Math.min(100, (2.0 - (currentRMS.total || 0)) / 2.0 * 100)} className="h-2" />
             </div>
           )}
 
@@ -233,7 +242,7 @@ export function GuidingDashboard({ className, compact = false }: GuidingDashboar
 
           {guidingState.currentStar && (
             <div className="text-xs text-muted-foreground">
-              Guide star: SNR {guidingState.currentStar.snr.toFixed(1)}
+              Guide star: SNR {guidingState.currentStar.snr?.toFixed(1) || 'N/A'}
             </div>
           )}
 
@@ -320,7 +329,11 @@ export function GuidingDashboard({ className, compact = false }: GuidingDashboar
       </div>
 
       {/* Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <DesktopGrid
+        columns={{ desktop: 4, wide: 5, ultrawide: 6 }}
+        gap="md"
+        className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+      >
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -384,7 +397,7 @@ export function GuidingDashboard({ className, compact = false }: GuidingDashboar
             </div>
           </CardContent>
         </Card>
-      </div>
+      </DesktopGrid>
 
       {/* Main Content */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>

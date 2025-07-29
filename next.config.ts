@@ -10,11 +10,7 @@ const nextConfig: NextConfig = {
     // Warning: This allows production builds to successfully complete even if
     // your project has type errors.
     ignoreBuildErrors: true,
-  },
-  experimental: {
-    // Disable static optimization to avoid SSR issues
-    forceSwcTransforms: true,
-  },
+  }
 };
 
 export default nextConfig;

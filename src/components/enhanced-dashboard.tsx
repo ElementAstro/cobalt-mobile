@@ -16,6 +16,7 @@ import { useEnhancedInteractions } from '@/hooks/use-enhanced-interactions';
 import { useAccessibility } from '@/hooks/use-accessibility';
 import { usePerformanceMonitor } from '@/lib/performance-monitor';
 import { OptimizedMotion, OptimizedAnimatePresence } from '@/components/ui/optimized-motion';
+import { PerformanceOptimized, OptimizedList } from '@/components/ui/performance-optimized';
 import { cn } from '@/lib/utils';
 import {
   Camera,

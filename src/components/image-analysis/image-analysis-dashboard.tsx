@@ -30,6 +30,14 @@ import {
   Zap
 } from 'lucide-react';
 
+// Import desktop layout components
+import {
+  DesktopGrid,
+  DesktopOnly,
+  MobileOnly,
+  useDesktopResponsive
+} from '@/components/layout';
+
 interface ImageAnalysisDashboardProps {
   className?: string;
   compact?: boolean;
@@ -63,6 +71,7 @@ export function ImageAnalysisDashboard({ className, compact = false }: ImageAnal
     getActiveAlerts
   } = useImageAnalysisStore();
 
+  const { isDesktop } = useDesktopResponsive();
   const [selectedTab, setSelectedTab] = useState('current');
 
   useEffect(() => {
@@ -281,7 +290,11 @@ export function ImageAnalysisDashboard({ className, compact = false }: ImageAnal
               </Card>
 
               {/* Metrics Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <DesktopGrid
+                columns={{ desktop: 4, wide: 5, ultrawide: 6 }}
+                gap="md"
+                className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+              >
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
@@ -348,7 +361,7 @@ export function ImageAnalysisDashboard({ className, compact = false }: ImageAnal
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              </DesktopGrid>
 
               {/* Detailed Metrics */}
               <Card>

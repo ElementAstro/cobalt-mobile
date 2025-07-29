@@ -32,6 +32,58 @@ export interface EquipmentStatus {
   focuser: "connected" | "disconnected" | "error" | "connecting";
 }
 
+// Device-specific data structures
+export interface DeviceInfo {
+  id: string;
+  name: string;
+  model: string;
+  manufacturer: string;
+  firmwareVersion: string;
+  serialNumber: string;
+  connectionType: 'USB' | 'Network' | 'Serial';
+  connectionAddress?: string;
+  connectionPort?: number;
+  lastConnected: Date;
+  capabilities: string[];
+}
+
+export interface DeviceMetrics {
+  uptime: number;
+  commandsExecuted: number;
+  errorsCount: number;
+  averageResponseTime: number;
+  lastError?: string;
+  lastErrorTime?: Date;
+  dataTransferred: number;
+  connectionStability: number; // 0-100%
+}
+
+export interface DeviceLogEntry {
+  id: string;
+  timestamp: Date;
+  level: 'info' | 'warning' | 'error' | 'debug';
+  message: string;
+  category: 'connection' | 'command' | 'status' | 'error' | 'performance';
+  deviceId: string;
+}
+
+export interface DeviceHistoricalData {
+  timestamp: Date;
+  temperature?: number;
+  position?: number;
+  status: string;
+  performance: number;
+}
+
+export interface DeviceState {
+  info: DeviceInfo;
+  metrics: DeviceMetrics;
+  logs: DeviceLogEntry[];
+  historicalData: DeviceHistoricalData[];
+  isOnline: boolean;
+  lastUpdate: Date;
+}
+
 export interface EnvironmentalData {
   temperature: number;
   humidity: number;
@@ -196,6 +248,23 @@ interface AppStore {
   setFocuserStatus: (status: Partial<FocuserStatus>) => void;
   setAutoFocus: (data: Partial<AutoFocusData>) => void;
   setStepSize: (size: number) => void;
+
+  // Device Management
+  devices: Record<string, DeviceState>;
+  selectedDeviceId: string | null;
+  deviceLogs: DeviceLogEntry[];
+  getDevice: (deviceId: string) => DeviceState | null;
+  updateDevice: (deviceId: string, updates: Partial<DeviceState>) => void;
+  addDeviceLog: (deviceId: string, log: Omit<DeviceLogEntry, 'id' | 'timestamp' | 'deviceId'>) => void;
+  clearDeviceLogs: (deviceId: string) => void;
+  getDeviceLogs: (deviceId: string) => DeviceLogEntry[];
+  updateDeviceMetrics: (deviceId: string, metrics: Partial<DeviceMetrics>) => void;
+  addDeviceHistoricalData: (deviceId: string, data: Omit<DeviceHistoricalData, 'timestamp'>) => void;
+  getDeviceHistoricalData: (deviceId: string, hours?: number) => DeviceHistoricalData[];
+  setSelectedDevice: (deviceId: string | null) => void;
+  refreshDeviceData: (deviceId: string) => Promise<void>;
+  connectDevice: (deviceId: string) => Promise<boolean>;
+  disconnectDevice: (deviceId: string) => Promise<boolean>;
   setTargetPosition: (position: number) => void;
 
   // Sequence
@@ -656,6 +725,334 @@ export const useAppStore = create<AppStore>()(
             threshold: 50,
           },
           notifications: [],
+
+          // Device Management State
+          devices: {
+            'camera-001': {
+              info: {
+                id: 'camera-001',
+                name: 'Main Camera',
+                model: 'ZWO ASI2600MC Pro',
+                manufacturer: 'ZWO',
+                firmwareVersion: '1.2.3',
+                serialNumber: 'ASI2600MC-12345',
+                connectionType: 'USB',
+                connectionAddress: 'USB3.0',
+                lastConnected: new Date(),
+                capabilities: ['Cooling', 'High Resolution', 'Color', 'USB 3.0']
+              },
+              metrics: {
+                uptime: 3600000,
+                commandsExecuted: 156,
+                errorsCount: 2,
+                averageResponseTime: 45,
+                lastError: 'Temporary communication timeout',
+                lastErrorTime: new Date(Date.now() - 300000),
+                dataTransferred: 1024000,
+                connectionStability: 95
+              },
+              logs: [],
+              historicalData: [],
+              isOnline: true,
+              lastUpdate: new Date()
+            },
+            'mount-001': {
+              info: {
+                id: 'mount-001',
+                name: 'Telescope Mount',
+                model: 'Sky-Watcher EQ6-R Pro',
+                manufacturer: 'Sky-Watcher',
+                firmwareVersion: '4.5.6',
+                serialNumber: 'EQ6R-67890',
+                connectionType: 'Network',
+                connectionAddress: '192.168.1.100',
+                connectionPort: 11111,
+                lastConnected: new Date(),
+                capabilities: ['GoTo', 'Tracking', 'Autoguiding', 'WiFi']
+              },
+              metrics: {
+                uptime: 7200000,
+                commandsExecuted: 89,
+                errorsCount: 0,
+                averageResponseTime: 120,
+                dataTransferred: 512000,
+                connectionStability: 98
+              },
+              logs: [],
+              historicalData: [],
+              isOnline: true,
+              lastUpdate: new Date()
+            },
+            'focuser-001': {
+              info: {
+                id: 'focuser-001',
+                name: 'Electronic Focuser',
+                model: 'ZWO EAF',
+                manufacturer: 'ZWO',
+                firmwareVersion: '2.1.0',
+                serialNumber: 'EAF-11111',
+                connectionType: 'USB',
+                connectionAddress: 'USB2.0',
+                lastConnected: new Date(),
+                capabilities: ['Motorized', 'Temperature Compensation', 'Backlash Compensation']
+              },
+              metrics: {
+                uptime: 3600000,
+                commandsExecuted: 45,
+                errorsCount: 1,
+                averageResponseTime: 80,
+                dataTransferred: 256000,
+                connectionStability: 92
+              },
+              logs: [],
+              historicalData: [],
+              isOnline: true,
+              lastUpdate: new Date()
+            },
+            'filter-001': {
+              info: {
+                id: 'filter-001',
+                name: 'Filter Wheel',
+                model: 'ZWO EFW 8x1.25"',
+                manufacturer: 'ZWO',
+                firmwareVersion: '1.8.2',
+                serialNumber: 'EFW-22222',
+                connectionType: 'USB',
+                connectionAddress: 'USB2.0',
+                lastConnected: new Date(),
+                capabilities: ['8 Position', 'Motorized', 'Position Sensing']
+              },
+              metrics: {
+                uptime: 3600000,
+                commandsExecuted: 23,
+                errorsCount: 0,
+                averageResponseTime: 60,
+                dataTransferred: 128000,
+                connectionStability: 96
+              },
+              logs: [],
+              historicalData: [],
+              isOnline: true,
+              lastUpdate: new Date()
+            }
+          },
+          selectedDeviceId: null,
+          deviceLogs: [],
+
+          // Device Management Functions
+          getDevice: (deviceId: string) => {
+            const state = get();
+            return state.devices[deviceId] || null;
+          },
+
+          updateDevice: (deviceId: string, updates: Partial<DeviceState>) => {
+            set((state) => ({
+              devices: {
+                ...state.devices,
+                [deviceId]: {
+                  ...state.devices[deviceId],
+                  ...updates,
+                  lastUpdate: new Date()
+                }
+              }
+            }));
+          },
+
+          addDeviceLog: (deviceId: string, log: Omit<DeviceLogEntry, 'id' | 'timestamp' | 'deviceId'>) => {
+            const newLog: DeviceLogEntry = {
+              ...log,
+              id: `${deviceId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              timestamp: new Date(),
+              deviceId
+            };
+
+            set((state) => {
+              const device = state.devices[deviceId];
+              if (!device) return state;
+
+              const updatedLogs = [newLog, ...device.logs].slice(0, 100); // Keep last 100 logs
+
+              return {
+                devices: {
+                  ...state.devices,
+                  [deviceId]: {
+                    ...device,
+                    logs: updatedLogs,
+                    lastUpdate: new Date()
+                  }
+                },
+                deviceLogs: [newLog, ...state.deviceLogs].slice(0, 500) // Keep last 500 global logs
+              };
+            });
+          },
+
+          clearDeviceLogs: (deviceId: string) => {
+            set((state) => {
+              const device = state.devices[deviceId];
+              if (!device) return state;
+
+              return {
+                devices: {
+                  ...state.devices,
+                  [deviceId]: {
+                    ...device,
+                    logs: [],
+                    lastUpdate: new Date()
+                  }
+                },
+                deviceLogs: state.deviceLogs.filter(log => log.deviceId !== deviceId)
+              };
+            });
+          },
+
+          getDeviceLogs: (deviceId: string) => {
+            const state = get();
+            const device = state.devices[deviceId];
+            return device ? device.logs : [];
+          },
+
+          updateDeviceMetrics: (deviceId: string, metrics: Partial<DeviceMetrics>) => {
+            set((state) => {
+              const device = state.devices[deviceId];
+              if (!device) return state;
+
+              return {
+                devices: {
+                  ...state.devices,
+                  [deviceId]: {
+                    ...device,
+                    metrics: {
+                      ...device.metrics,
+                      ...metrics
+                    },
+                    lastUpdate: new Date()
+                  }
+                }
+              };
+            });
+          },
+
+          addDeviceHistoricalData: (deviceId: string, data: Omit<DeviceHistoricalData, 'timestamp'>) => {
+            const newData: DeviceHistoricalData = {
+              ...data,
+              timestamp: new Date()
+            };
+
+            set((state) => {
+              const device = state.devices[deviceId];
+              if (!device) return state;
+
+              const updatedData = [newData, ...device.historicalData].slice(0, 1000); // Keep last 1000 data points
+
+              return {
+                devices: {
+                  ...state.devices,
+                  [deviceId]: {
+                    ...device,
+                    historicalData: updatedData,
+                    lastUpdate: new Date()
+                  }
+                }
+              };
+            });
+          },
+
+          getDeviceHistoricalData: (deviceId: string, hours: number = 24) => {
+            const state = get();
+            const device = state.devices[deviceId];
+            if (!device) return [];
+
+            const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+            return device.historicalData.filter(data => data.timestamp >= cutoffTime);
+          },
+
+          setSelectedDevice: (deviceId: string | null) => {
+            set({ selectedDeviceId: deviceId });
+          },
+
+          refreshDeviceData: async (deviceId: string) => {
+            const { updateDevice, addDeviceLog } = get();
+
+            try {
+              // Simulate API call to refresh device data
+              await new Promise(resolve => setTimeout(resolve, 1000));
+
+              updateDevice(deviceId, {
+                lastUpdate: new Date(),
+                isOnline: true
+              });
+
+              addDeviceLog(deviceId, {
+                level: 'info',
+                message: 'Device data refreshed successfully',
+                category: 'status'
+              });
+            } catch (error) {
+              addDeviceLog(deviceId, {
+                level: 'error',
+                message: `Failed to refresh device data: ${error}`,
+                category: 'error'
+              });
+            }
+          },
+
+          connectDevice: async (deviceId: string) => {
+            const { updateDevice, addDeviceLog } = get();
+
+            try {
+              // Simulate connection process
+              await new Promise(resolve => setTimeout(resolve, 2000));
+
+              updateDevice(deviceId, {
+                isOnline: true,
+                lastUpdate: new Date()
+              });
+
+              addDeviceLog(deviceId, {
+                level: 'info',
+                message: 'Device connected successfully',
+                category: 'connection'
+              });
+
+              return true;
+            } catch (error) {
+              addDeviceLog(deviceId, {
+                level: 'error',
+                message: `Failed to connect device: ${error}`,
+                category: 'connection'
+              });
+              return false;
+            }
+          },
+
+          disconnectDevice: async (deviceId: string) => {
+            const { updateDevice, addDeviceLog } = get();
+
+            try {
+              // Simulate disconnection process
+              await new Promise(resolve => setTimeout(resolve, 500));
+
+              updateDevice(deviceId, {
+                isOnline: false,
+                lastUpdate: new Date()
+              });
+
+              addDeviceLog(deviceId, {
+                level: 'info',
+                message: 'Device disconnected successfully',
+                category: 'connection'
+              });
+
+              return true;
+            } catch (error) {
+              addDeviceLog(deviceId, {
+                level: 'error',
+                message: `Failed to disconnect device: ${error}`,
+                category: 'connection'
+              });
+              return false;
+            }
+          },
         });
       },
     }),

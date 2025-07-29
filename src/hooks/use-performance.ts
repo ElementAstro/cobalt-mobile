@@ -1,4 +1,5 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { safeToFixed } from '@/lib/utils';
 
 interface PerformanceMetrics {
   renderTime: number;

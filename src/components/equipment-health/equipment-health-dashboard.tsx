@@ -34,6 +34,14 @@ import {
   XCircle
 } from 'lucide-react';
 
+// Import desktop layout components
+import {
+  DesktopGrid,
+  DesktopOnly,
+  MobileOnly,
+  useDesktopResponsive
+} from '@/components/layout';
+
 interface EquipmentHealthDashboardProps {
   className?: string;
   compact?: boolean;
@@ -73,6 +81,7 @@ export function EquipmentHealthDashboard({ className, compact = false }: Equipme
     exportHealthData
   } = useEquipmentHealthStore();
 
+  const { isDesktop } = useDesktopResponsive();
   const [selectedTab, setSelectedTab] = useState('overview');
 
   useEffect(() => {
@@ -249,7 +258,11 @@ export function EquipmentHealthDashboard({ className, compact = false }: Equipme
       </div>
 
       {/* System Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <DesktopGrid
+        columns={{ desktop: 4, wide: 5, ultrawide: 6 }}
+        gap="md"
+        className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+      >
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -315,7 +328,7 @@ export function EquipmentHealthDashboard({ className, compact = false }: Equipme
             </div>
           </CardContent>
         </Card>
-      </div>
+      </DesktopGrid>
 
       {/* Active Alerts */}
       {activeAlerts.length > 0 && (

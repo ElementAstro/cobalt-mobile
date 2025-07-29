@@ -1,7 +1,8 @@
 import { createEnhancedStore, createAsyncAction } from './base-store';
+import { equipmentApi, Equipment, EquipmentProfile, EquipmentStatus } from '../api/equipment';
 
-// Re-export EquipmentProfile from the API for convenience
-export type { EquipmentProfile } from '../api/equipment';
+// Re-export types from the API for convenience
+export type { EquipmentProfile, Equipment, EquipmentStatus } from '../api/equipment';
 
 // Equipment types
 export interface EquipmentStatus {
@@ -66,8 +67,41 @@ export interface AutoFocusSettings {
   useTemperatureCompensation: boolean;
 }
 
+// Equipment Management State
+interface EquipmentManagementState {
+  // Equipment list and management
+  equipmentList: Equipment[];
+  selectedEquipment: Equipment | null;
+  isLoadingEquipment: boolean;
+  equipmentError: string | null;
+
+  // Search and filtering
+  searchQuery: string;
+  filterType: string | null;
+  filterStatus: string | null;
+  filterBrand: string | null;
+  sortBy: 'name' | 'type' | 'status' | 'lastConnected';
+  sortOrder: 'asc' | 'desc';
+
+  // Equipment operations
+  isConnectingEquipment: Record<string, boolean>;
+  isDeletingEquipment: Record<string, boolean>;
+  equipmentConnectionErrors: Record<string, string>;
+
+  // Equipment profiles
+  profiles: EquipmentProfile[];
+  selectedProfile: EquipmentProfile | null;
+  isLoadingProfiles: boolean;
+
+  // Form state
+  isAddingEquipment: boolean;
+  isEditingEquipment: boolean;
+  editingEquipmentId: string | null;
+  formErrors: Record<string, string>;
+}
+
 // Equipment store state
-interface EquipmentStoreState {
+interface EquipmentStoreState extends EquipmentManagementState {
   // Status
   equipmentStatus: EquipmentStatus;
   isConnecting: boolean;
@@ -126,10 +160,169 @@ interface EquipmentStoreState {
   connectAllEquipment: () => Promise<void>;
   disconnectAllEquipment: () => Promise<void>;
   emergencyStop: () => Promise<void>;
+
+  // Equipment Management Actions
+  loadEquipmentList: () => Promise<void>;
+  addEquipment: (equipment: Omit<Equipment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateEquipment: (id: string, updates: Partial<Equipment>) => Promise<void>;
+  deleteEquipment: (id: string) => Promise<void>;
+  connectEquipment: (id: string) => Promise<void>;
+  disconnectEquipment: (id: string) => Promise<void>;
+  testEquipmentConnection: (id: string) => Promise<void>;
+
+  // Search and filtering actions
+  setSearchQuery: (query: string) => void;
+  setFilterType: (type: string | null) => void;
+  setFilterStatus: (status: string | null) => void;
+  setFilterBrand: (brand: string | null) => void;
+  setSortBy: (sortBy: 'name' | 'type' | 'status' | 'lastConnected') => void;
+  setSortOrder: (order: 'asc' | 'desc') => void;
+  clearFilters: () => void;
+
+  // Equipment selection and form actions
+  selectEquipment: (equipment: Equipment | null) => void;
+  startAddingEquipment: () => void;
+  startEditingEquipment: (id: string) => void;
+  cancelEquipmentForm: () => void;
+  setFormError: (field: string, error: string) => void;
+  clearFormErrors: () => void;
+
+  // Profile management actions
+  loadProfiles: () => Promise<void>;
+  createProfile: (profile: Omit<EquipmentProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateProfile: (id: string, updates: Partial<EquipmentProfile>) => Promise<void>;
+  deleteProfile: (id: string) => Promise<void>;
+  applyProfile: (id: string) => Promise<void>;
+  selectProfile: (profile: EquipmentProfile | null) => void;
+
+  // Computed getters
+  getFilteredEquipment: () => Equipment[];
+  getEquipmentByType: (type: string) => Equipment[];
+  getConnectedEquipment: () => Equipment[];
+  getDisconnectedEquipment: () => Equipment[];
 }
+
+// Sample equipment data for development/testing
+const sampleEquipment: Equipment[] = [
+  {
+    id: 'eq-1',
+    name: 'Main Camera',
+    type: 'camera',
+    brand: 'ZWO',
+    model: 'ASI2600MC Pro',
+    status: 'connected',
+    connectionType: 'usb',
+    capabilities: ['Cooling', 'High Resolution', 'Color'],
+    settings: {
+      gain: 100,
+      offset: 10,
+      temperature: -10,
+      binning: '1x1'
+    },
+    lastConnected: new Date('2024-01-15T10:30:00Z'),
+    firmware: 'v1.2.3',
+    serialNumber: 'ASI2600MC-12345',
+    userId: 'user-1',
+    createdAt: new Date('2024-01-01T00:00:00Z'),
+    updatedAt: new Date('2024-01-15T10:30:00Z'),
+  },
+  {
+    id: 'eq-2',
+    name: 'Primary Mount',
+    type: 'mount',
+    brand: 'Sky-Watcher',
+    model: 'EQ6-R Pro',
+    status: 'connected',
+    connectionType: 'wifi',
+    capabilities: ['GoTo', 'Tracking', 'Autoguiding'],
+    settings: {
+      trackingRate: 'sidereal',
+      guidingRate: '0.5x',
+      slewRate: '9x'
+    },
+    lastConnected: new Date('2024-01-15T10:25:00Z'),
+    firmware: 'v4.39.02',
+    serialNumber: 'EQ6R-67890',
+    userId: 'user-1',
+    createdAt: new Date('2024-01-01T00:00:00Z'),
+    updatedAt: new Date('2024-01-15T10:25:00Z'),
+  },
+  {
+    id: 'eq-3',
+    name: 'Filter Wheel',
+    type: 'filter_wheel',
+    brand: 'ZWO',
+    model: 'EFW 8x1.25"',
+    status: 'disconnected',
+    connectionType: 'usb',
+    capabilities: ['8 Position', 'Fast Switching'],
+    settings: {
+      positions: 8,
+      filters: ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII', 'Clear']
+    },
+    lastConnected: new Date('2024-01-14T20:15:00Z'),
+    firmware: 'v1.1.0',
+    serialNumber: 'EFW8-11111',
+    userId: 'user-1',
+    createdAt: new Date('2024-01-01T00:00:00Z'),
+    updatedAt: new Date('2024-01-14T20:15:00Z'),
+  },
+  {
+    id: 'eq-4',
+    name: 'Electronic Focuser',
+    type: 'focuser',
+    brand: 'ZWO',
+    model: 'EAF',
+    status: 'error',
+    connectionType: 'usb',
+    capabilities: ['Auto Focus', 'Temperature Compensation'],
+    settings: {
+      stepSize: 100,
+      backlash: 200,
+      tempCoeff: -2.5
+    },
+    lastConnected: new Date('2024-01-13T18:45:00Z'),
+    firmware: 'v1.0.5',
+    serialNumber: 'EAF-22222',
+    userId: 'user-1',
+    createdAt: new Date('2024-01-01T00:00:00Z'),
+    updatedAt: new Date('2024-01-13T18:45:00Z'),
+  },
+];
 
 // Initial state
 const initialEquipmentState = {
+  // Equipment Management State
+  equipmentList: process.env.NODE_ENV === 'development' ? sampleEquipment : [],
+  selectedEquipment: null,
+  isLoadingEquipment: false,
+  equipmentError: null,
+
+  // Search and filtering
+  searchQuery: '',
+  filterType: null,
+  filterStatus: null,
+  filterBrand: null,
+  sortBy: 'name' as const,
+  sortOrder: 'asc' as const,
+
+  // Equipment operations
+  isConnectingEquipment: {},
+  isDeletingEquipment: {},
+  equipmentConnectionErrors: {},
+
+  // Equipment profiles
+  profiles: [],
+  selectedProfile: null,
+  isLoadingProfiles: false,
+
+  // Form state
+  isAddingEquipment: false,
+  isEditingEquipment: false,
+  editingEquipmentId: null,
+  formErrors: {},
+
+  // Legacy equipment status
   equipmentStatus: {
     camera: 'disconnected' as const,
     mount: 'disconnected' as const,
@@ -534,14 +727,14 @@ export const useEquipmentStore = createEnhancedStore<EquipmentStoreState>(
           state.isFilterWheelMoving = false;
           state.isFocuserMoving = false;
           state.autoFocus.running = false;
-          
+
           // Stop mount tracking
           state.mountStatus.tracking = false;
           state.mountStatus.slewing = false;
-          
+
           // Stop filter wheel
           state.filterWheelStatus.moving = false;
-          
+
           // Stop focuser
           state.focuserStatus.moving = false;
         });
@@ -550,5 +743,319 @@ export const useEquipmentStore = createEnhancedStore<EquipmentStoreState>(
         errorKey: 'connectionError',
       }
     ),
+
+    // Equipment Management Actions
+    loadEquipmentList: createAsyncAction(
+      { setState: set, getState: get },
+      async () => {
+        const response = await equipmentApi.getEquipment();
+        if (response.success && response.data) {
+          set((state: any) => {
+            state.equipmentList = response.data;
+          });
+        } else {
+          throw new Error(response.error || 'Failed to load equipment');
+        }
+      },
+      {
+        loadingKey: 'isLoadingEquipment',
+        errorKey: 'equipmentError',
+      }
+    ),
+
+    addEquipment: createAsyncAction(
+      { setState: set, getState: get },
+      async (equipment: Omit<Equipment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
+        const response = await equipmentApi.addEquipment(equipment);
+        if (response.success && response.data) {
+          set((state: any) => {
+            state.equipmentList.push(response.data);
+            state.isAddingEquipment = false;
+            state.formErrors = {};
+          });
+        } else {
+          throw new Error(response.error || 'Failed to add equipment');
+        }
+      },
+      {
+        errorKey: 'equipmentError',
+      }
+    ),
+
+    updateEquipment: createAsyncAction(
+      { setState: set, getState: get },
+      async (id: string, updates: Partial<Equipment>) => {
+        const response = await equipmentApi.updateEquipment(id, updates);
+        if (response.success && response.data) {
+          set((state: any) => {
+            const index = state.equipmentList.findIndex((eq: Equipment) => eq.id === id);
+            if (index !== -1) {
+              state.equipmentList[index] = response.data;
+            }
+            state.isEditingEquipment = false;
+            state.editingEquipmentId = null;
+            state.formErrors = {};
+          });
+        } else {
+          throw new Error(response.error || 'Failed to update equipment');
+        }
+      },
+      {
+        errorKey: 'equipmentError',
+      }
+    ),
+
+    deleteEquipment: createAsyncAction(
+      { setState: set, getState: get },
+      async (id: string) => {
+        set((state: any) => {
+          state.isDeletingEquipment[id] = true;
+        });
+
+        const response = await equipmentApi.deleteEquipment(id);
+        if (response.success) {
+          set((state: any) => {
+            state.equipmentList = state.equipmentList.filter((eq: Equipment) => eq.id !== id);
+            delete state.isDeletingEquipment[id];
+            if (state.selectedEquipment?.id === id) {
+              state.selectedEquipment = null;
+            }
+          });
+        } else {
+          set((state: any) => {
+            delete state.isDeletingEquipment[id];
+          });
+          throw new Error(response.error || 'Failed to delete equipment');
+        }
+      },
+      {
+        errorKey: 'equipmentError',
+      }
+    ),
+
+    connectEquipment: createAsyncAction(
+      { setState: set, getState: get },
+      async (id: string) => {
+        set((state: any) => {
+          state.isConnectingEquipment[id] = true;
+          delete state.equipmentConnectionErrors[id];
+        });
+
+        const response = await equipmentApi.connectEquipment({ equipmentId: id });
+        if (response.success) {
+          set((state: any) => {
+            const equipment = state.equipmentList.find((eq: Equipment) => eq.id === id);
+            if (equipment) {
+              equipment.status = 'connected';
+              equipment.lastConnected = new Date();
+            }
+            delete state.isConnectingEquipment[id];
+          });
+        } else {
+          set((state: any) => {
+            delete state.isConnectingEquipment[id];
+            state.equipmentConnectionErrors[id] = response.error || 'Connection failed';
+          });
+          throw new Error(response.error || 'Failed to connect equipment');
+        }
+      },
+      {
+        errorKey: 'equipmentError',
+      }
+    ),
+
+    disconnectEquipment: createAsyncAction(
+      { setState: set, getState: get },
+      async (id: string) => {
+        const response = await equipmentApi.disconnectEquipment(id);
+        if (response.success) {
+          set((state: any) => {
+            const equipment = state.equipmentList.find((eq: Equipment) => eq.id === id);
+            if (equipment) {
+              equipment.status = 'disconnected';
+            }
+          });
+        } else {
+          throw new Error(response.error || 'Failed to disconnect equipment');
+        }
+      },
+      {
+        errorKey: 'equipmentError',
+      }
+    ),
+
+    testEquipmentConnection: createAsyncAction(
+      { setState: set, getState: get },
+      async (id: string) => {
+        const response = await equipmentApi.testConnection(id);
+        if (!response.success) {
+          throw new Error(response.error || 'Connection test failed');
+        }
+      },
+      {
+        errorKey: 'equipmentError',
+      }
+    ),
+
+    // Search and filtering actions
+    setSearchQuery: (query: string) =>
+      set((state: any) => {
+        state.searchQuery = query;
+      }),
+
+    setFilterType: (type: string | null) =>
+      set((state: any) => {
+        state.filterType = type;
+      }),
+
+    setFilterStatus: (status: string | null) =>
+      set((state: any) => {
+        state.filterStatus = status;
+      }),
+
+    setFilterBrand: (brand: string | null) =>
+      set((state: any) => {
+        state.filterBrand = brand;
+      }),
+
+    setSortBy: (sortBy: 'name' | 'type' | 'status' | 'lastConnected') =>
+      set((state: any) => {
+        state.sortBy = sortBy;
+      }),
+
+    setSortOrder: (order: 'asc' | 'desc') =>
+      set((state: any) => {
+        state.sortOrder = order;
+      }),
+
+    clearFilters: () =>
+      set((state: any) => {
+        state.searchQuery = '';
+        state.filterType = null;
+        state.filterStatus = null;
+        state.filterBrand = null;
+        state.sortBy = 'name';
+        state.sortOrder = 'asc';
+      }),
+
+    // Equipment selection and form actions
+    selectEquipment: (equipment: Equipment | null) =>
+      set((state: any) => {
+        state.selectedEquipment = equipment;
+      }),
+
+    startAddingEquipment: () =>
+      set((state: any) => {
+        state.isAddingEquipment = true;
+        state.isEditingEquipment = false;
+        state.editingEquipmentId = null;
+        state.formErrors = {};
+      }),
+
+    startEditingEquipment: (id: string) =>
+      set((state: any) => {
+        state.isEditingEquipment = true;
+        state.isAddingEquipment = false;
+        state.editingEquipmentId = id;
+        state.formErrors = {};
+      }),
+
+    cancelEquipmentForm: () =>
+      set((state: any) => {
+        state.isAddingEquipment = false;
+        state.isEditingEquipment = false;
+        state.editingEquipmentId = null;
+        state.formErrors = {};
+      }),
+
+    setFormError: (field: string, error: string) =>
+      set((state: any) => {
+        state.formErrors[field] = error;
+      }),
+
+    clearFormErrors: () =>
+      set((state: any) => {
+        state.formErrors = {};
+      }),
+
+    // Computed getters
+    getFilteredEquipment: () => {
+      const state = get();
+      let filtered = [...state.equipmentList];
+
+      // Apply search filter
+      if (state.searchQuery) {
+        const query = state.searchQuery.toLowerCase();
+        filtered = filtered.filter(eq =>
+          eq.name.toLowerCase().includes(query) ||
+          eq.brand.toLowerCase().includes(query) ||
+          eq.model.toLowerCase().includes(query) ||
+          eq.type.toLowerCase().includes(query)
+        );
+      }
+
+      // Apply type filter
+      if (state.filterType) {
+        filtered = filtered.filter(eq => eq.type === state.filterType);
+      }
+
+      // Apply status filter
+      if (state.filterStatus) {
+        filtered = filtered.filter(eq => eq.status === state.filterStatus);
+      }
+
+      // Apply brand filter
+      if (state.filterBrand) {
+        filtered = filtered.filter(eq => eq.brand === state.filterBrand);
+      }
+
+      // Apply sorting
+      filtered.sort((a, b) => {
+        let aValue: any, bValue: any;
+
+        switch (state.sortBy) {
+          case 'name':
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+            break;
+          case 'type':
+            aValue = a.type;
+            bValue = b.type;
+            break;
+          case 'status':
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          case 'lastConnected':
+            aValue = a.lastConnected ? new Date(a.lastConnected).getTime() : 0;
+            bValue = b.lastConnected ? new Date(b.lastConnected).getTime() : 0;
+            break;
+          default:
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+        }
+
+        if (aValue < bValue) return state.sortOrder === 'asc' ? -1 : 1;
+        if (aValue > bValue) return state.sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      return filtered;
+    },
+
+    getEquipmentByType: (type: string) => {
+      const state = get();
+      return state.equipmentList.filter(eq => eq.type === type);
+    },
+
+    getConnectedEquipment: () => {
+      const state = get();
+      return state.equipmentList.filter(eq => eq.status === 'connected');
+    },
+
+    getDisconnectedEquipment: () => {
+      const state = get();
+      return state.equipmentList.filter(eq => eq.status === 'disconnected');
+    },
   })
 );

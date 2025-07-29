@@ -189,7 +189,7 @@ describe('DiscoveryAssistant', () => {
 
       expect(screen.getByText('Target Discovery Assistant')).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /recommendations/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /session planning/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /session plan/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /preferences/i })).toBeInTheDocument();
     });
 
